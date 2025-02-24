@@ -123,6 +123,13 @@ def main():
                         """)
                         
                         if unique_id in tracking_data:
+                            replacement_by = st.text_input(
+                                "Par qui est remplacé le CDI ?", 
+                                key=f"replacement_by_{unique_id}",
+                                value=tracking_data[unique_id].get('replacement_by', '')
+                            )
+                            tracking_data[unique_id]['replacement_by'] = replacement_by
+                            save_tracking_data(tracking_data)
                             st.info(f"Marqué comme remplacé le: {tracking_data[unique_id]['date']}")
                     
                     st.divider()
@@ -141,7 +148,7 @@ def main():
                 )[:5]:
                     st.markdown(f"""
                         **{info['name']}**  
-                        {info['date']} | {info['contract_type']}
+                        🗓️ {info['date']} | 👥 {info['csm']}
                     """)
                 
                 if st.button("Faire un export des données"):
