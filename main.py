@@ -14,8 +14,13 @@ def fetch_data_from_url(url):
     try:
         response = requests.get(url)
         response.raise_for_status()
-        csv_data = StringIO(response.text)
-        return pd.read_csv(csv_data, encoding='utf-8')
+        try:
+            csv_data = StringIO(response.content.decode('utf-8'))
+            return pd.read_csv(csv_data)
+        except UnicodeDecodeError:
+            # If UTF-8 fails, try latin-1 (ISO-8859-1)
+            csv_data = StringIO(response.content.decode('latin-1'))
+            return pd.read_csv(csv_data)
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching data: {str(e)}")
         return None
@@ -84,7 +89,7 @@ def main():
             if search_term:
                 filtered_df = filtered_df[filtered_df['medecin'].str.contains(search_term, case=False, na=False)]
             if contract_filter and 'All' not in contract_filter:
-                filtered_df = filtered_df[filtered_df['type_contract'].isin(contract_filter)]
+                filtered_df = filtered_df[filtered_df['csm'].isin(contract_filter)]
             
             # Display medical staff
             for index, row in filtered_df.iterrows():
