@@ -6,3 +6,4 @@ tracking_data.json
 data/
 .streamlit/secrets.toml
 holidays
+.devcontainer
