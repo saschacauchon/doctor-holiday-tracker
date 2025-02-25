@@ -5,6 +5,7 @@ import json
 import requests
 from io import StringIO
 import os
+import altair as alt
 
 st.set_page_config(layout="wide")
 METABASE_URL = st.secrets['METABASE_URL']
@@ -18,7 +19,6 @@ def fetch_data_from_url(url):
             csv_data = StringIO(response.content.decode('utf-8'))
             return pd.read_csv(csv_data)
         except UnicodeDecodeError:
-            # If UTF-8 fails, try latin-1 (ISO-8859-1)
             csv_data = StringIO(response.content.decode('latin-1'))
             return pd.read_csv(csv_data)
     except requests.exceptions.RequestException as e:
@@ -68,8 +68,75 @@ def main():
         tracking_data = load_tracking_data_from_file()
         st.session_state.tracking_data = tracking_data
         
-        col1, col2 = st.columns([3, 1])
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.subheader("📊 Tableau de bord")
+
+        holiday_per_week = df.groupby('week').size().reset_index(name='count')
+            
+        # Count replaced doctors per week
+        replaced_rpps_with_week = [item.split('_') for item in tracking_data.keys()]
+        replaced_data = []
         
+        for rpps_week in replaced_rpps_with_week:
+            if len(rpps_week) == 2:  # Ensure format is correct
+                replaced_data.append({
+                    'rpps': rpps_week[0],
+                    'week': rpps_week[1]
+                })
+        
+        replaced_df = pd.DataFrame(replaced_data)
+        if not replaced_df.empty:
+            replaced_per_week = replaced_df.groupby('week').size().reset_index(name='count')
+            # Merge with all weeks for complete data
+            all_weeks = pd.DataFrame({'week': holiday_per_week['week'].unique()})
+            replaced_per_week = all_weeks.merge(replaced_per_week, on='week', how='left').fillna(0)
+        else:
+            replaced_per_week = pd.DataFrame({
+                'week': holiday_per_week['week'].unique(),
+                'count': [0] * len(holiday_per_week['week'].unique())
+            })
+        
+        # Create dashboard metrics
+        dashboard_cols = st.columns(3)
+        
+        with dashboard_cols[0]:
+            st.metric(label="Nombre total de médecins", value=len(df))
+        
+        with dashboard_cols[1]:
+            st.metric(label="Médecins remplacés", value=len(tracking_data))
+        
+        with dashboard_cols[2]:
+            replacement_percentage = round((len(tracking_data) / len(df) * 100), 1) if len(df) > 0 else 0
+            st.metric(label="Taux de remplacement", value=replacement_percentage)
+
+        
+        # Create charts
+        chart_cols = st.columns(2)
+        
+        with chart_cols[0]:
+            st.markdown("### 🏖️ Médecins en congés par semaine")
+            holidays_chart = alt.Chart(holiday_per_week).mark_bar().encode(
+                x=alt.X('week:N', title='Semaine'),
+                y=alt.Y('count:Q', title='Nombre de médecins'),
+                color=alt.value('#1E88E5'),
+                tooltip=['week', 'count']
+            ).properties(height=300)
+            st.altair_chart(holidays_chart, use_container_width=True)
+        
+        with chart_cols[1]:
+            st.markdown("### 🔄 Médecins remplacés par semaine")
+            replaced_chart = alt.Chart(replaced_per_week).mark_bar().encode(
+                x=alt.X('week:N', title='Semaine'),
+                y=alt.Y('count:Q', title='Nombre de remplacements'),
+                color=alt.value('#43A047'),
+                tooltip=['week', 'count']
+            ).properties(height=300)
+            st.altair_chart(replaced_chart, use_container_width=True)
+        
+        st.markdown("<hr>", unsafe_allow_html=True)
+
+        col1, col2 = st.columns([3, 1])
+
         with col1:
             st.subheader("🩺 Liste des médecins")
             
