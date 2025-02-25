@@ -1,3 +1,6 @@
+# =============================================================================
+# Import libraries
+# =============================================================================
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -7,9 +10,16 @@ from io import StringIO
 import os
 import altair as alt
 
+# =============================================================================
+# Get Metabase URL from .streamlit/secrets.toml file
+# =============================================================================
 st.set_page_config(layout="wide")
 METABASE_URL = st.secrets['METABASE_URL']
 
+
+# =================================================================================================================
+# Basic methods to retrieve the data from metabase and create json data to track doctors who got replaced
+# =================================================================================================================
 def fetch_data_from_url(url):
     """Fetch CSV data from the provided Metabase URL"""
     try:
@@ -47,6 +57,9 @@ def load_tracking_data_from_file():
     except FileNotFoundError:
         return {}
 
+# ===============
+# Main app
+# ===============
 def main():
     st.title("Suivi des congés - Doctopus")
 
@@ -141,13 +154,19 @@ def main():
             st.subheader("🩺 Liste des médecins")
             
             # Add filters
-            col_filter1, col_filter2 = st.columns(2)
+            col_filter1, col_filter2, col_filter3 = st.columns(3)
             with col_filter1:
                 search_term = st.text_input("Rechercher avec nom du médecin:", "")
             with col_filter2:
                 contract_filter = st.multiselect(
                     "Filtrer par CSM",
                     options=['All'] + df['csm'].unique().tolist(),
+                    default='All'
+                )
+            with col_filter3: 
+                week_filter = st.multiselect(
+                    "Filtrer par Semaine",
+                    options=['All'] + df['week'].unique().tolist(),
                     default='All'
                 )
             
@@ -157,6 +176,8 @@ def main():
                 filtered_df = filtered_df[filtered_df['medecin'].str.contains(search_term, case=False, na=False)]
             if contract_filter and 'All' not in contract_filter:
                 filtered_df = filtered_df[filtered_df['csm'].isin(contract_filter)]
+            if week_filter and 'All' not in week_filter:
+                filtered_df = filtered_df[filtered_df['week'].isin(week_filter)]
             
             # Display medical staff
             for index, row in filtered_df.iterrows():
